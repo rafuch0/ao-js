@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>AO-JS</title>
+		<link href="jsontree.css" rel="stylesheet">
+		<script src="jsontree.min.js"></script>
+		<script src="ICanHaz.min.js"></script>
+		<script type="text/javascript" src="js/jwplayer/jwplayer.js"></script>
+	</head>
+
+	<body>
+		<input id="q" value="Normaa-FakeMedia"></input>
+		<select id="c" onChange="changeMaxResults(this.value)"></input>
+			<option value="100" selected>100</option>
+			<option value="50">50</option>
+			<option value="25">25</option>
+		</select>
+
+		<input type="button" onClick="getDetailsClick()" value="getDetails">
+		<input type="button" onClick="getResultsClick()" value="getResults">
+
+		<div id="jwPlayer"></div>
+
+		<div id="details">
+		</div>
+
+		<div id="pagination">
+		</div>
+
+		<div id="results">
+		</div>
+
+		<div id="debug">
+		</div>
+
+	<script id="getDetailsHTML" type="text/html">
+		<a id="linkM3U" href="">M3U Playlist</a>
+		<a id="linkXSPF" href="">XSPF Playlist</a>
+		<a id="linkJWPlayer" href="javascript:" onClick="setupPlayerList('jwPlayer')">JW Playlist</a><br>
+		<b>Identifier:</b> {{ identifier }}<br>
+		<b>Title:</b> {{ title }}<br>
+		{{# creator }} <b>Creator:</b> {{> getQueryLinkCreator}}<br> {{/ creator }}
+
+		{{# collection.0 }}<b>Collection:</b>{{/ collection.0 }}
+		{{# collection }}
+			{{> getQueryLinkCollection }}
+		{{/ collection }}
+		{{# collection.0 }}<br>{{/ collection.0 }}
+
+		{{# subject.0 }}<b>Subject:</b>{{/ subject.0 }}
+		{{# subject }}
+			{{> getQueryLinkSubject }}
+		{{/ subject }}
+		{{# subject.0 }}<br>{{/ subject.0 }}
+
+		{{# description }} <b>Description:</b> {{ description }}<br> {{/ description }}
+
+		{{# files }}
+			{{# images.0 }}
+				<b>Images:</b><br>
+				{{# images }}
+					{{> getAlbumArt }}
+				{{/ images }}
+				<br>
+			{{/ images.0 }}
+
+			{{# mp3s.0 }}<b>MP3s:</b><br>{{/ mp3s.0 }}
+			{{# mp3s }}
+				{{> getAudioFileLink }}
+			{{/ mp3s }}
+
+			{{# vbrmp3s.0 }}<b>VBRMP3s:</b><br>{{/ vbrmp3s.0 }}
+			{{# vbrmp3s }}
+				{{> getAudioFileLink }}
+			{{/ vbrmp3s }}
+
+			{{# lowmp3s.0 }}<b>LowMP3s:</b><br>{{/ lowmp3s.0 }}
+			{{# lowmp3s }}
+				{{> getAudioFileLink }}
+			{{/ lowmp3s }}
+
+			{{# oggs.0 }}<b>OGGs:</b><br>{{/ oggs.0 }}
+			{{# oggs }}
+				{{> getAudioFileLink }}
+			{{/ oggs }}
+
+			{{# flacs.0 }}<b>FLACs:</b><br>{{/ flacs.0}}
+			{{# flacs }}
+				{{> getAudioFileLink }}
+			{{/ flacs }}
+
+			{{# archives.0 }}<b>Archives:</b><br>{{/ archives.0 }}
+			{{# archives }}
+				{{> getDownloadFileLink }}
+			{{/ archives }}
+		{{/ files }}<br>
+	</script>
+
+	<script id="getResultsHTML" type="text/html">
+		{{# response }}
+			NumFound: {{ numFound }}<br>
+	 		Start: {{ start }}<br>
+			{{# docs }}
+				{{> getResultLink }}
+			{{/ docs }}
+		{{/ response }}
+
+		{{^ response }}
+			ERROR
+		{{/ response }}
+	</script>
+
+	<script id="getResultLink" class="partial" type="text/html">
+		<b>Identifier: </b> <a href='#{"id":"{{ identifier }}"}'>{{ identifier }}</a><br>
+		<b>Title: </b> {{ title }}<br>
+
+		{{# creator }}
+			<b>Creator: </b>{{> getQueryLinkCreator }}<span onClick="addCreatorToQuery('{{ creator }}')">+</span><br>
+		{{/ creator }}
+		
+		{{# collection.0 }}<b>Collection: </b>{{/ collection.0 }}
+		{{# collection }}
+			{{> getQueryLinkCollection }}<span onClick="addCollectionToQuery('{{ . }}')">+</span>
+		{{/ collection }}
+		{{# collection.0 }}<br>{{/ collection.0 }}
+		
+		{{# subject.0 }}<b>Subject: </b>{{/ subject.0 }}
+		{{# subject }}
+			{{> getQueryLinkSubject }}<span onClick="addSubjectToQuery('{{ . }}')">+</span>
+		{{/ subject }}
+		{{# subject.0 }}<br>{{/ subject.0 }}
+		<br>
+	</script>
+
+	<script id="getPaginationHTML" type="text/html">
+		{{# pages }}
+			<a href='#{"query":"{{ query }}","page":"{{ . }}"}'>{{{ . }}}</a>
+		{{/ pages }}
+	</script>
+
+	<script id="getAudioFileLink" class="partial" type="text/html">
+		<a href="javascript:" onClick="setupPlayerFile('jwPlayer', '{{ location }}/{{ filename}}')">&#9655;</a>
+		<a href="{{ location }}/{{ filename }}">&#8681;</a>
+		{{# creator }}{{ creator }} - {{/ creator }}{{# album }}{{ album }} - {{/ album }}{{# track }}{{ track }} - {{/ track }}{{# title }}{{ title }}{{/ title }}<br>
+	</script>
+
+	<script id="getDownloadFileLink" class="partial" type="text/html">
+		<a href="{{ location }}/{{ . }}">&#8681;</a> {{ . }}<br>
+	</script>
+
+	<script id="getAlbumArt" class="partial" type="text/html">
+		<img height="256" width="256" src="{{ location }}/{{ . }}">
+	</script>
+
+	<script id="getQueryLink" class="partial" type="text/html">
+		<a href='#{"query":"\"{{ . }}\""}'>{{ . }}</a><span onClick="addToQuery('{{ . }}')">+</span>
+	</script>
+
+	<script id="getQueryLinkSubject" class="partial" type="text/html">
+		<a href='#{"query":"subject:\"{{ . }}\""}'>{{ . }}</a>
+	</script>
+
+	<script id="getQueryLinkCollection" class="partial" type="text/html">
+		<a href='#{"query":"collection:\"{{ . }}\""}'>{{ . }}</a>
+	</script>
+
+	<script id="getQueryLinkCreator" class="partial" type="text/html">
+		<a href='#{"query":"creator:\"{{ creator }}\""}'>{{ creator }}</a>
+	</script>
+
+	<script>
+var AOS_CONFIG_MAXRESULTS = 100
+var AOS_URL_DETAILSP1 = 'http://archive.org/details/'
+var AOS_URL_DETAILSP2 = '?output=json'
+var AOS_URL_QUERYP1 = 'http://archive.org/advancedsearch.php?q=%28'
+var AOS_URL_QUERYP2 = '%29+AND+%28mediatype%3Aaudio+OR+format%3Amp3%29&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=collection&fl%5B%5D=subject&sort%5B%5D=downloads+desc&sort%5B%5D=&sort%5B%5D=&save=yes&output=json'
+
+var lastQueryStart = 0
+var lastQueryTotal = 0
+
+function showTree(data)
+{
+	document.getElementById('debug').innerHTML = JSONTree.create(data)
+}
+
+function changeMaxResults(value)
+{
+	AOS_CONFIG_MAXRESULTS = value
+
+	document.getElementById('pagination').innerHTML = ich.getPaginationHTML(getPaginationData(lastQueryStart, lastQueryTotal))
+}
+
+var latestPlaylist = []
+function setupPlayerList(div, preLoad)
+{
+	if(preLoad)
+	{
+		latestPlaylist = preLoad
+
+		return
+	}
+
+	jwplayer(div).setup(
+	{
+		playlist: latestPlaylist
+		,height: 26
+		,width: 600
+		,autostart: true
+	})
+
+	scroll(0, 0)
+}
+
+function setupPlayerFile(div, url)
+{
+	jwplayer(div).setup(
+	{
+		file: url
+		,height: 26
+		,width: 600
+		,autostart: true
+	})
+
+	scroll(0, 0)
+}
+
+function getDetails(id)
+{
+	document.title = 'Details for '+id
+
+	loadJSONDataYQL(AOS_URL_DETAILSP1+id+AOS_URL_DETAILSP2, 'showDetails')
+}
+
+function getResults(query, page)
+{
+	document.title = 'Results for '+query
+
+	page = (page == null)?1:page
+	query = encodeURI(query.replace(' ', '+'))
+
+	loadJSONDataYQL(AOS_URL_QUERYP1+query+AOS_URL_QUERYP2+'&rows='+AOS_CONFIG_MAXRESULTS+'&page='+page, 'showResults')
+}
+
+function loadJSONDataYQL(url, callback)
+{
+	var xmlhttp = new XMLHttpRequest()
+
+	xmlhttp.onreadystatechange = function()
+	{
+		if((xmlhttp.readyState == 4) && (xmlhttp.status == 200))
+		{
+			eval(xmlhttp.responseText.replace(/^\/\*\*\//,''))
+		}
+	}
+
+	xmlhttp.open("GET", 'http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20json%20where%20url%3D\''+encodeURIComponent(url)+'\'%0A&format=json&diagnostics=false&callback='+callback, true)
+	xmlhttp.send()
+}
+
+function prepareResultsData(data)
+{
+	if(data['response'].numFound <= 1)
+	{
+		return data['response'].docs
+	}
+
+	data = data['response'].docs
+
+	var dataOut = []
+	var tmpData = {}
+
+	for(var i=0,imax = data.length; i < imax; i++)
+	{
+		tmpData = {}
+
+		tmpData.identifier = data[i].identifier
+		tmpData.title = data[i].title
+		tmpData.creator = data[i].creator
+
+		if(data[i].subject)
+		{
+			var subjects = data[i]['subject'].toString().split(/[;,\/]/g)
+			var subject
+
+			tmpData.subject = []
+			for (var j=0; subject=subjects[j]; j++)
+			{
+				if((subject+"").length < 50)
+				{
+					subject = subject.replace(/^\s+/g, "").replace(/\s+$/g, "")
+
+					tmpData['subject'].push(subject)
+				}
+			}
+		}
+
+		var collections = data[i].collection
+		var collection, collectionsx
+
+		tmpData.collection = []
+		if(collections)
+		{
+			collections = collections.toString().split(/[;,\/]/g)
+
+			for(var x = 0, len = collections.length; x < len; x++)
+			{
+				if (~tmpData['collection'].indexOf(collections[x]))
+				{
+					continue
+				}
+
+				tmpData['collection'].push(collections[x])
+			}
+		}
+
+		dataOut.push(tmpData)
+	}
+
+	return dataOut
+}
+
+function prepareDetailsData(data)
+{
+	var dataOut = {}
+
+	if(data)
+	{
+		dataOut.identifier = data['metadata'].identifier
+		dataOut.location = 'http://archive.org/download/'+dataOut.identifier
+		dataOut.title = data['metadata'].title
+		dataOut.creator = data['metadata'].creator
+		dataOut.description = data['metadata'].description
+
+		if(data['metadata'].subject)
+		{
+			var subjects = data['metadata']['subject'].toString().split(/[;,\/]/g)
+			var subject
+
+			dataOut.subject = []
+			for (var j=0; subject=subjects[j]; j++)
+			{
+				if((subject+"").length < 50)
+				{
+					subject = subject.replace(/^\s+/g, "").replace(/\s+$/g, "")
+
+					dataOut['subject'].push(subject)
+				}
+			}
+		}
+
+		var collections = data['metadata'].collection
+		var collection, collectionsx
+
+		dataOut.collection = []
+		if(collections)
+		{
+			collections = collections.toString().split(/[;,\/]/g)
+
+			for(var x = 0, len = collections.length; x < len; x++)
+			{
+				if (~dataOut['collection'].indexOf(collections[x]))
+				{
+					continue
+				}
+
+				dataOut['collection'].push(collections[x])
+			}
+		}
+
+		dataOut.files = {}
+		dataOut['files'].oggs = []
+		dataOut['files'].flacs = []
+		dataOut['files'].mp3s = []
+		dataOut['files'].lowmp3s = []
+		dataOut['files'].vbrmp3s = []
+		dataOut['files'].archives = []
+		dataOut['files'].images = []
+		dataOut['files'].waveImages = []
+
+		var tmpFile
+		for (var file in data.files)
+		{
+			if ((file.search(/(mp3|flac|ogg)$/i) != -1))
+			{
+				if(data['files'][file].source == 'original')
+				{
+					tmpFile = { 
+						filename: file.replace(/^_/, '')
+						,creator: data['files'][file].creator
+						,album: data['files'][file].album
+						,track: data['files'][file].track
+						,title: data['files'][file].title
+					}
+				}
+				else if(data['files'][file].source == 'derivative')
+				{
+					tmpFile = {
+						filename: file.replace(/^_/, '')
+						,creator: data['files']['_'+data['files'][file].original].creator
+						,album: data['files']['_'+data['files'][file].original].album
+						,track: data['files']['_'+data['files'][file].original].track
+						,title: data['files']['_'+data['files'][file].original].title
+					}
+				}
+
+				if ((file.search(/_\d{2,3}kb\.mp3$/i) != -1))
+				{
+					dataOut['files']['lowmp3s'].push(tmpFile)
+					dataOut['files']['waveImages'].push(file.replace(/\.mp3$/i, '.png'))
+				}
+				else if ((file.search(/_vbr\.mp3$/i) != -1))
+				{
+					dataOut['files']['vbrmp3s'].push(tmpFile)
+					dataOut['files']['waveImages'].push(file.replace(/\.mp3$/i, '.png'))
+				}
+				else if ((file.search(/(mp3)$/i) != -1))
+				{
+					dataOut['files']['mp3s'].push(tmpFile)
+					dataOut['files']['waveImages'].push(file.replace(/\.mp3$/i, '.png'))
+				}
+				else if ((file.search(/(ogg)$/i) != -1))
+				{
+					dataOut['files']['oggs'].push(tmpFile)
+					dataOut['files']['waveImages'].push(file.replace(/\.ogg$/i, '.png'))
+				}
+				else
+				{
+					dataOut['files']['flacs'].push(tmpFile)
+				}
+			}
+			else if ((file.search(/(zip|rar)$/i) != -1))
+			{
+				dataOut['files']['archives'].push(file.replace(/^_/, ''))
+			}
+		}
+
+		for (var file in data.files)
+		{
+			if ((file.search(/(jpg|jpeg|gif|png)$/i) != -1)
+				&& (file.search(/_spectrogram\.(png)$/i) == -1)
+				&& (file.search(/_thumb\.(jpg|jpeg|gif|png)$/i) == -1)
+				&& (dataOut['files']['waveImages'].indexOf(file) == -1)
+			){
+				dataOut['files']['images'].push(file.replace(/^_/, ''))
+			}
+		}
+	}
+
+	return dataOut
+}
+
+function showResults(data)
+{
+	data = data['query']['results'].json
+
+	lastQueryStart = data['response'].start
+	lastQueryTotal = data['response'].numFound
+
+	data['response'].docs = prepareResultsData(data)
+
+	showTree(data['response'].docs)
+
+	document.getElementById('details').innerHTML = ''
+	document.getElementById('results').innerHTML = ich.getResultsHTML(data)
+	document.getElementById('pagination').innerHTML = ich.getPaginationHTML(getPaginationData(lastQueryStart, lastQueryTotal))
+}
+
+function showDetails(data)
+{
+	var content = ''
+
+	data = data['query']['results'].json
+
+	data = prepareDetailsData(data)
+
+	showTree(data)
+
+	document.getElementById('results').innerHTML = ''
+	document.getElementById('pagination').innerHTML = ''
+	document.getElementById('details').innerHTML = ich.getDetailsHTML(data)
+
+	var playListData = getPlaylistData(data)
+
+	document.getElementById('linkM3U').href = 'data:audio/x-mpegurl;base64,' + playListData.m3uData
+	document.getElementById('linkXSPF').href = 'data:application/xspf+xml;base64,' + playListData.xspfData
+
+	setupPlayerList('unused', playListData.jwplayerData)
+}
+
+function getPlaylistData(data)
+{
+	var outputM3UHead = '#EXTM3U' + "\n"
+	var outputM3UTail = '#EXT-X-ENDLIST' + "\n"
+
+	var outputXSPFHead = '<?xml version="1.0" encoding="UTF-8"?><playlist xmlns="http://xspf.org/ns/0/" version="1">'
+
+	if(data['files'].images && data['files']['images'].length > 0)
+	{
+		outputXSPFHead = outputXSPFHead + '<image>'+data['files']['images'][0]+'</image>'
+	}
+
+	outputXSPFHead = outputXSPFHead + '<trackList>'
+
+	var outputXSPFTail = '</trackList></playlist>'
+
+	var outputM3U = ''
+	var outputXSPF = ''
+	var outputJWPlayer = []
+
+	if(data['files'].mp3s)
+	data['files']['mp3s'].forEach(function(track)
+	{
+		track.title = track['title'].replace(/[\u00A0-\u2666]/g, function(c) {return '&#' + c.charCodeAt(0) + ';';})
+
+		outputM3U = outputM3U + '#EXTINF:-1,' + (track.title?track.title:track.filename) + "\n" + data.location + '/' + track.filename + "\n"
+		outputXSPF = outputXSPF + '<track><location>' + data.location + '/' + track.filename + '</location><title>' + (track.title?track.title:track.filename) + '</title></track>'
+		outputJWPlayer.push(
+		{
+			file: data.location + '/' + track.filename
+			,title: (track.title?track.title:track.filename)
+		})
+	})
+	
+	var m3uData = btoa(outputM3UHead + outputM3U + outputM3UTail)
+	var xspfData = btoa(outputXSPFHead + outputXSPF + outputXSPFTail)
+
+	return {
+		m3uData: m3uData
+		,xspfData: xspfData
+		,jwplayerData: outputJWPlayer
+	}
+}
+
+function getPaginationData(start, total)
+{
+	var pages = {}
+	pages.pages = []
+	pages.query = hash.query.replace(/"/g, '\\\"')
+
+	if(total > 10000)
+	{
+		total = 10000
+	}
+
+	for(var i=1,imax=total/AOS_CONFIG_MAXRESULTS + 1; i < imax; i++)
+	{
+		if(i == start/AOS_CONFIG_MAXRESULTS + 1)
+		{
+			pages['pages'].push('<b>'+i+'</b>')
+		}
+		else
+		{
+			pages['pages'].push(i)
+		}
+	}
+
+	return pages
+}
+
+var hash
+function routeHash()
+{
+	hash = window['location']['hash'].replace(/^#/, '').replace(/%22/g, '"').replace(/\/"/g, '\\"')
+
+	if(hash)
+	{
+		hash = JSON.parse(hash)
+	}
+
+	if(hash.id)
+	{
+		getDetails(hash.id)
+	}
+	else if(hash.query)
+	{
+		if(hash.page)
+		{
+			getResults(hash.query, hash.page)
+		}
+		else
+		{
+			getResults(hash.query)
+		}
+	}
+}
+
+function loadPage(page)
+{
+	updateRoute({"query": hash.query, "page": page})
+}
+
+function getDetailsClick(id)
+{
+	id = (id)?id:document.getElementById('q').value
+	updateRoute({ "id": id })
+}
+
+function getResultsClick(query)
+{
+	query = (query)?query:document.getElementById('q').value
+	updateRoute({ "query": query.replace(' ', '+') })
+}
+
+function addToQuery(query)
+{
+	updateRoute({query: hash.query+' '+query})
+}
+
+function addSubjectToQuery(query)
+{
+	updateRoute({query: hash.query+' subject:"'+query+'"'})
+}
+
+function addCollectionToQuery(query)
+{
+	updateRoute({query: hash.query+' collection:"'+query+'"'})
+}
+
+function addCreatorToQuery(query)
+{
+	updateRoute({query: hash.query+' creator:"'+query+'"'})
+}
+
+function updateRoute(data)
+{
+	window['location'].hash = '#'+JSON.stringify(data)
+}
+
+window.onhashchange = routeHash
+window.onload = routeHash
+	</script>
+
+	</body>
+</html>
+
